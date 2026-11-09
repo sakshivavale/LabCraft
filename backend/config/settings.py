@@ -6,6 +6,7 @@ Environment variables are loaded from a .env file (never commit .env to Git).
 """
 
 from pathlib import Path
+from datetime import timedelta   # used for JWT token lifetime settings
 import os
 from dotenv import load_dotenv
 
@@ -132,16 +133,50 @@ MEDIA_ROOT = BASE_DIR / 'media'
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 # ---------------------------------------------------------------------------
+# CUSTOM USER MODEL
+# Tell Django to use OUR User model instead of the built-in one.
+# IMPORTANT: This must be set before the first migration is created.
+# Format: 'app_name.ModelName'
+# ---------------------------------------------------------------------------
+AUTH_USER_MODEL = 'accounts.User'
+
+# ---------------------------------------------------------------------------
 # DJANGO REST FRAMEWORK
 # ---------------------------------------------------------------------------
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': [
+        # JWTAuthentication: reads the 'Authorization: Bearer <token>' header
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        # SessionAuthentication: for the browsable API / Django Admin
         'rest_framework.authentication.SessionAuthentication',
-        # JWT will be added in feature/accounts-auth
     ],
     'DEFAULT_PERMISSION_CLASSES': [
+        # By default, every endpoint requires a logged-in user
+        # Individual views can override this (e.g. AllowAny for registration)
         'rest_framework.permissions.IsAuthenticated',
     ],
+}
+
+# ---------------------------------------------------------------------------
+# SIMPLE JWT SETTINGS
+# Controls how long tokens stay valid.
+# ---------------------------------------------------------------------------
+SIMPLE_JWT = {
+    # Access token: sent with every API request — short-lived for security
+    'ACCESS_TOKEN_LIFETIME':  timedelta(minutes=60),   # expires in 1 hour
+
+    # Refresh token: used to get a new access token without re-logging-in
+    'REFRESH_TOKEN_LIFETIME': timedelta(days=7),       # expires in 7 days
+
+    # When a refresh token is used, issue a new refresh token too
+    'ROTATE_REFRESH_TOKENS': True,
+
+    # Header type: clients send "Authorization: Bearer <token>"
+    'AUTH_HEADER_TYPES': ('Bearer',),
+
+    # Claims included in every token by default
+    'USER_ID_FIELD': 'id',
+    'USER_ID_CLAIM': 'user_id',
 }
 
 # ---------------------------------------------------------------------------
