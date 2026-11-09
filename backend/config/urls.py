@@ -19,3 +19,4 @@ urlpatterns = [
     path('api/grader/',      include('grader.urls')),
     path('api/analytics/',   include('analytics.urls')),
 ]
+

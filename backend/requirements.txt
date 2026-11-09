@@ -32,3 +32,4 @@ pytest-django>=4.7
 
 # --- Code Execution (to be expanded in feature/automated-grading-engine) ---
 # docker>=6.0
+
