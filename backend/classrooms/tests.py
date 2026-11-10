@@ -83,7 +83,11 @@ class ClassroomModelTest(TestCase):
         )
         self.assertTrue(bool(classroom.join_code))    # not empty
         self.assertEqual(len(classroom.join_code), 8) # exactly 8 characters
-        self.assertTrue(classroom.join_code.isupper()) # all uppercase
+        # Join code is uppercase hex — all alphabetic characters must be uppercase.
+        # We use upper() comparison instead of isupper() because isupper() returns
+        # False when the string has no letters at all (e.g. a purely numeric code
+        # like '12345678'), which is a valid UUID hex slice.
+        self.assertEqual(classroom.join_code, classroom.join_code.upper())
 
     def test_join_code_is_unique_across_classrooms(self):
         """Every classroom must have a different join code."""
