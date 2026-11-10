@@ -1,13 +1,13 @@
 /*
   src/pages/StudentDashboardPage.jsx — Student Performance Analytics Dashboard for LabCraft.
 
-  Why this page exists (Module 6):
-    Students need a centralized view to track their academic progress:
-    - Overall completion rate (% of assigned lab work submitted)
-    - Acceptance rate (% of submissions passing all test cases)
-    - Cumulative marks earned vs. total marks possible across all enrolled classrooms
-    - Detailed per-assignment status with direct 1-click links to the Monaco Code Editor
-      and Submission History.
+  Features (Module 6 + Join Classroom):
+    - Learning progress metrics: assignments completed, acceptance rate, marks earned
+    - Real-time submission outcome distribution (AC, WA, TLE, RE, CE)
+    - "+ Join Classroom with Code" modal to enroll into new courses using teacher's 8-character join code
+    - Enrolled classrooms cards with instructor info and progress
+    - Unified assignments table with filters (All / Pending / Submitted) and direct 1-click links
+      to launch the Monaco Code Editor or review past submission histories.
 */
 
 import React, { useState, useEffect } from 'react';
@@ -15,9 +15,9 @@ import { Link } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import LoadingSpinner from '../components/LoadingSpinner';
 import StatusBadge from '../components/StatusBadge';
-import { getStudentDashboard } from '../services/api';
+import { getStudentDashboard, joinClassroom } from '../services/api';
 import { getUser } from '../utils/auth';
-import { STATUS_COLORS, STATUS_DISPLAY } from '../utils/languageMap';
+import { STATUS_COLORS } from '../utils/languageMap';
 
 function StudentDashboardPage() {
   const user = getUser();
@@ -26,30 +26,60 @@ function StudentDashboardPage() {
   const [analytics, setAnalytics] = useState(null);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+
+  // Join Classroom Modal State
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [joinCodeInput, setJoinCodeInput] = useState('');
+  const [joiningClass, setJoiningClass] = useState(false);
 
   // Filter state for assignment table: 'all' | 'pending' | 'submitted'
   const [filter, setFilter] = useState('all');
 
+  const fetchDashboard = async () => {
+    setLoading(true);
+    setErrorMessage('');
+
+    try {
+      const response = await getStudentDashboard();
+      setAnalytics(response.data);
+    } catch (err) {
+      const detail =
+        err.response?.data?.detail ||
+        'Failed to load student performance analytics. Please ensure you are logged in as a student.';
+      setErrorMessage(detail);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchDashboard = async () => {
-      setLoading(true);
-      setErrorMessage('');
-
-      try {
-        const response = await getStudentDashboard();
-        setAnalytics(response.data);
-      } catch (err) {
-        const detail =
-          err.response?.data?.detail ||
-          'Failed to load student performance analytics. Please ensure you are logged in as a student.';
-        setErrorMessage(detail);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchDashboard();
   }, []);
+
+  // Handle Join Classroom
+  const handleJoinClassroom = async (e) => {
+    e.preventDefault();
+    const cleanCode = joinCodeInput.trim().toUpperCase();
+    if (!cleanCode) {
+      alert('Please enter an 8-character join code.');
+      return;
+    }
+
+    setJoiningClass(true);
+    try {
+      const response = await joinClassroom(cleanCode);
+      const joinedClassName = response.data?.classroom?.name || 'classroom';
+      setSuccessMessage(`Successfully joined "${joinedClassName}"!`);
+      setJoinCodeInput('');
+      setShowJoinModal(false);
+      await fetchDashboard();
+    } catch (err) {
+      alert(err.response?.data?.detail || err.response?.data?.join_code?.[0] || 'Failed to join classroom. Please check your join code.');
+    } finally {
+      setJoiningClass(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -79,7 +109,46 @@ function StudentDashboardPage() {
     );
   }
 
-  const { summary, status_distribution, classrooms = [], assignments = [] } = analytics || {};
+  // Normalize data schemas to handle both backend field variants seamlessly
+  const rawSummary = analytics?.summary || {};
+  const rawClassrooms = analytics?.classrooms || [];
+  const rawAssignments = analytics?.per_assignment_breakdown || analytics?.assignments || [];
+  const status_distribution = analytics?.status_distribution || {};
+
+  const summary = {
+    total_classrooms: rawSummary.enrolled_classrooms_count ?? rawSummary.total_classrooms ?? rawClassrooms.length,
+    submitted_assignments: rawSummary.assignments_submitted ?? rawSummary.submitted_assignments ?? 0,
+    total_assignments: rawSummary.total_assignments_available ?? rawSummary.total_assignments ?? rawAssignments.length,
+    pending_assignments: rawSummary.assignments_pending ?? rawSummary.pending_assignments ?? 0,
+    total_submissions: rawSummary.total_submissions ?? 0,
+    acceptance_rate_percentage: rawSummary.acceptance_rate ?? rawSummary.acceptance_rate_percentage ?? 0,
+    total_marks_earned: rawSummary.total_score_earned ?? rawSummary.total_marks_earned ?? 0,
+    total_marks_possible: rawSummary.total_possible_marks ?? rawSummary.total_marks_possible ?? 0,
+    average_score_percentage: rawSummary.overall_average_score_percentage ?? rawSummary.average_score_percentage ?? 0,
+  };
+
+  const classrooms = rawClassrooms.map((c) => ({
+    id: c.classroom_id ?? c.id,
+    name: c.classroom_name ?? c.name,
+    code: c.join_code ?? c.code ?? '',
+    teacher_name: c.teacher_name ?? 'Instructor',
+    total_assignments: c.total_assignments ?? 0,
+    submitted_assignments: c.submitted_assignments ?? 0,
+    earned_marks: c.total_marks_earned ?? c.earned_marks ?? 0,
+    possible_marks: c.max_marks_possible ?? c.possible_marks ?? 0,
+  }));
+
+  const assignments = rawAssignments.map((a) => ({
+    id: a.assignment_id ?? a.id,
+    title: a.assignment_title ?? a.title,
+    classroom_name: a.classroom_name ?? '',
+    due_date: a.due_date,
+    is_submitted: a.submitted ?? a.is_submitted ?? false,
+    submission_count: a.attempts_count ?? a.submission_count ?? 0,
+    best_status: a.latest_status ?? a.best_status ?? null,
+    best_score: a.best_score ?? 0,
+    max_score: a.max_marks ?? a.max_score ?? 100,
+  }));
 
   // Calculate filtered assignments for display
   const filteredAssignments = assignments.filter((a) => {
@@ -98,7 +167,7 @@ function StudentDashboardPage() {
     (status_distribution?.memory_limit_exceeded || 0);
 
   const completionRate =
-    summary?.total_assignments > 0
+    summary.total_assignments > 0
       ? Math.round((summary.submitted_assignments / summary.total_assignments) * 100)
       : 0;
 
@@ -106,14 +175,38 @@ function StudentDashboardPage() {
     <>
       <Navbar />
       <div className="container">
-        {/* Page Title & Greeting */}
-        <div style={{ marginBottom: '24px' }}>
-          <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>👋 Welcome back, {user?.username || 'Student'}!</span>
-          </h1>
-          <p className="subtitle">
-            Here is your real-time learning progress, submission history, and assignment analytics.
-          </p>
+        {/* Success Alert Banner */}
+        {successMessage && (
+          <div className="success-msg" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <span>{successMessage}</span>
+            <button
+              onClick={() => setSuccessMessage('')}
+              style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', fontWeight: 700 }}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
+        {/* Page Title & Join Classroom CTA */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
+          <div>
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}>
+              <span>👋 Welcome back, {user?.username || 'Student'}!</span>
+            </h1>
+            <p className="subtitle" style={{ margin: '4px 0 0 0' }}>
+              Here is your real-time learning progress, enrolled courses, and assignment tasks.
+            </p>
+          </div>
+
+          {/* Join Classroom CTA Button */}
+          <button
+            onClick={() => setShowJoinModal(true)}
+            className="btn btn-success"
+            style={{ padding: '10px 18px', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <span>🔑</span> Join Classroom with Code
+          </button>
         </div>
 
         {/* Top Summary Metrics Grid */}
@@ -122,9 +215,9 @@ function StudentDashboardPage() {
           <div className="stat-card">
             <span className="stat-label">Assignments Completed</span>
             <div className="stat-val">
-              {summary?.submitted_assignments || 0}
+              {summary.submitted_assignments}
               <span style={{ fontSize: '16px', color: '#64748b', fontWeight: 500 }}>
-                {' '}/ {summary?.total_assignments || 0}
+                {' '}/ {summary.total_assignments}
               </span>
             </div>
             <div className="progress-bar-bg">
@@ -140,19 +233,19 @@ function StudentDashboardPage() {
           <div className="stat-card">
             <span className="stat-label">Acceptance Rate</span>
             <div className="stat-val text-success">
-              {summary?.acceptance_rate_percentage || 0}%
+              {summary.acceptance_rate_percentage}%
             </div>
             <div className="progress-bar-bg">
               <div
                 className="progress-bar-fill"
                 style={{
-                  width: `${summary?.acceptance_rate_percentage || 0}%`,
+                  width: `${summary.acceptance_rate_percentage}%`,
                   background: '#10b981',
                 }}
               />
             </div>
             <span className="stat-sub">
-              {status_distribution?.accepted || 0} of {summary?.total_submissions || 0} submissions accepted
+              {status_distribution?.accepted || 0} of {summary.total_submissions} submissions accepted
             </span>
           </div>
 
@@ -160,27 +253,27 @@ function StudentDashboardPage() {
           <div className="stat-card">
             <span className="stat-label">Total Marks Earned</span>
             <div className="stat-val" style={{ color: '#3b82f6' }}>
-              {summary?.total_marks_earned || 0}
+              {summary.total_marks_earned}
               <span style={{ fontSize: '16px', color: '#64748b', fontWeight: 500 }}>
-                {' '}/ {summary?.total_marks_possible || 0}
+                {' '}/ {summary.total_marks_possible}
               </span>
             </div>
             <div className="progress-bar-bg">
               <div
                 className="progress-bar-fill"
                 style={{
-                  width: `${summary?.average_score_percentage || 0}%`,
+                  width: `${summary.average_score_percentage}%`,
                   background: '#3b82f6',
                 }}
               />
             </div>
-            <span className="stat-sub">{summary?.average_score_percentage || 0}% Average Score</span>
+            <span className="stat-sub">{summary.average_score_percentage}% Average Score</span>
           </div>
 
           {/* Card 4: Total Enrolled Classrooms */}
           <div className="stat-card">
             <span className="stat-label">Enrolled Classrooms</span>
-            <div className="stat-val">{summary?.total_classrooms || 0}</div>
+            <div className="stat-val">{summary.total_classrooms}</div>
             <div className="progress-bar-bg">
               <div className="progress-bar-fill" style={{ width: '100%', background: '#8b5cf6' }} />
             </div>
@@ -200,7 +293,6 @@ function StudentDashboardPage() {
             Proportion of all test runner results across your coding submissions.
           </p>
 
-          {/* Multi-segment distribution bar */}
           {totalEvaluated > 0 ? (
             <>
               <div className="dist-bar-wrapper">
@@ -289,10 +381,25 @@ function StudentDashboardPage() {
 
         {/* Enrolled Classrooms Grid */}
         <div style={{ marginBottom: '24px' }}>
-          <h2>🏫 Enrolled Classrooms ({classrooms.length})</h2>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+            <h2 style={{ margin: 0 }}>🏫 Enrolled Classrooms ({classrooms.length})</h2>
+            <button
+              onClick={() => setShowJoinModal(true)}
+              className="btn btn-secondary"
+              style={{ fontSize: '12px', padding: '5px 12px' }}
+            >
+              + Join Another Class
+            </button>
+          </div>
+
           {classrooms.length === 0 ? (
-            <div className="card" style={{ color: '#94a3b8' }}>
-              You are not currently enrolled in any approved classrooms. Ask your instructor for an invite code.
+            <div className="card" style={{ color: '#94a3b8', textAlign: 'center', padding: '36px' }}>
+              <p style={{ fontSize: '16px', marginBottom: '12px' }}>
+                You are not enrolled in any classrooms yet.
+              </p>
+              <button onClick={() => setShowJoinModal(true)} className="btn btn-success">
+                Enter an 8-Character Join Code
+              </button>
             </div>
           ) : (
             <div
@@ -311,19 +418,22 @@ function StudentDashboardPage() {
                 return (
                   <div key={c.id} className="card" style={{ marginBottom: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <h3 style={{ margin: 0, color: '#f8fafc' }}>{c.name}</h3>
-                      <span
-                        style={{
-                          fontSize: '11px',
-                          background: '#334155',
-                          padding: '2px 8px',
-                          borderRadius: '6px',
-                          color: '#94a3b8',
-                          fontWeight: 600,
-                        }}
-                      >
-                        {c.code}
-                      </span>
+                      <h3 style={{ margin: 0, color: '#f8fafc', fontSize: '18px' }}>{c.name}</h3>
+                      {c.code && (
+                        <span
+                          style={{
+                            fontSize: '11px',
+                            background: '#334155',
+                            padding: '2px 8px',
+                            borderRadius: '6px',
+                            color: '#38bdf8',
+                            fontWeight: 700,
+                            letterSpacing: '1px',
+                          }}
+                        >
+                          {c.code}
+                        </span>
+                      )}
                     </div>
                     <div className="text-muted" style={{ fontSize: '13px', margin: '4px 0 12px 0' }}>
                       Instructor: <strong style={{ color: '#cbd5e1' }}>{c.teacher_name}</strong>
@@ -361,9 +471,9 @@ function StudentDashboardPage() {
             }}
           >
             <div>
-              <h2 style={{ margin: 0 }}>📝 Assignments & Submissions</h2>
+              <h2 style={{ margin: 0 }}>📝 Assignments & Coding Tasks ({assignments.length})</h2>
               <p className="subtitle" style={{ margin: '4px 0 0 0' }}>
-                Track deadlines, best scores, and launch the Monaco Code Editor.
+                Solve programming tasks directly inside the Monaco Code Editor.
               </p>
             </div>
 
@@ -381,14 +491,14 @@ function StudentDashboardPage() {
                 style={{ padding: '6px 14px', fontSize: '13px' }}
                 onClick={() => setFilter('pending')}
               >
-                Pending ({summary?.pending_assignments || 0})
+                Pending ({summary.pending_assignments})
               </button>
               <button
                 className={`btn ${filter === 'submitted' ? 'btn-primary' : 'btn-secondary'}`}
                 style={{ padding: '6px 14px', fontSize: '13px' }}
                 onClick={() => setFilter('submitted')}
               >
-                Submitted ({summary?.submitted_assignments || 0})
+                Submitted ({summary.submitted_assignments})
               </button>
             </div>
           </div>
@@ -405,8 +515,8 @@ function StudentDashboardPage() {
                     <th>Assignment Title</th>
                     <th>Classroom</th>
                     <th>Due Date</th>
-                    <th>Best Verdict</th>
-                    <th>Score</th>
+                    <th>Status</th>
+                    <th>Best Score</th>
                     <th>Attempts</th>
                     <th style={{ textAlign: 'right' }}>Actions</th>
                   </tr>
@@ -494,9 +604,61 @@ function StudentDashboardPage() {
           )}
         </div>
       </div>
+
+      {/* --------------------------------------------------------------------- */}
+      {/* Modal: Join Classroom with Code */}
+      {/* --------------------------------------------------------------------- */}
+      {showJoinModal && (
+        <div className="modal-overlay" onClick={() => setShowJoinModal(false)}>
+          <div className="modal-content" style={{ maxWidth: '440px' }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <h2 style={{ margin: 0 }}>🔑 Join a Classroom</h2>
+              <button onClick={() => setShowJoinModal(false)} className="btn btn-secondary" style={{ padding: '4px 8px' }}>
+                ✕
+              </button>
+            </div>
+
+            <p className="subtitle" style={{ marginBottom: '16px' }}>
+              Ask your teacher for the 8-character classroom join code and paste it below.
+            </p>
+
+            <form onSubmit={handleJoinClassroom}>
+              <div style={{ marginBottom: '20px' }}>
+                <label htmlFor="joinCode">Classroom Join Code *</label>
+                <input
+                  id="joinCode"
+                  type="text"
+                  placeholder="e.g. F7FF660A"
+                  maxLength={8}
+                  style={{ textTransform: 'uppercase', letterSpacing: '2px', fontSize: '18px', fontWeight: 700 }}
+                  value={joinCodeInput}
+                  onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowJoinModal(false)}
+                  className="btn btn-secondary"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={joiningClass}
+                  className="btn btn-success"
+                >
+                  {joiningClass ? 'Joining...' : 'Join Classroom'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   );
 }
 
 export default StudentDashboardPage;
-

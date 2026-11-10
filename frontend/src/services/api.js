@@ -114,6 +114,43 @@ export const getAssignment = (assignmentId) =>
   api.get(`/api/assignments/${assignmentId}/student/`);
 
 // ---------------------------------------------------------------------------
+// Classroom & Assignment CRUD helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Teacher creates a new classroom.
+ * POST /api/classrooms/
+ * @param {{ name: string, description?: string }} data
+ */
+export const createClassroom = (data) =>
+  api.post('/api/classrooms/', data);
+
+/**
+ * Teacher deletes an existing classroom.
+ * DELETE /api/classrooms/<classroomId>/
+ * @param {number|string} classroomId
+ */
+export const deleteClassroom = (classroomId) =>
+  api.delete(`/api/classrooms/${classroomId}/`);
+
+/**
+ * Student joins an existing classroom using an 8-character join code.
+ * POST /api/classrooms/join/
+ * @param {string} joinCode
+ */
+export const joinClassroom = (joinCode) =>
+  api.post('/api/classrooms/join/', { join_code: joinCode });
+
+/**
+ * Teacher creates a new coding assignment inside a classroom.
+ * POST /api/assignments/classroom/<classroomId>/
+ * @param {number|string} classroomId
+ * @param {Object} data
+ */
+export const createAssignment = (classroomId, data) =>
+  api.post(`/api/assignments/classroom/${classroomId}/`, data);
+
+// ---------------------------------------------------------------------------
 // Analytics API helpers (Module 6)
 // ---------------------------------------------------------------------------
 
