@@ -129,6 +129,17 @@ class SubmitCodeView(generics.CreateAPIView):
             student=request.user     # from JWT token — cannot be forged
         )
 
+        # ------------------------------------------------------------------
+        # STEP 6: Enqueue background evaluation in grader sandbox.
+        # The API returns immediately (HTTP 201) while grading proceeds
+        # asynchronously without blocking the client.
+        # ------------------------------------------------------------------
+        try:
+            from grader.tasks import enqueue_grading
+            enqueue_grading(submission.id)
+        except Exception:
+            pass  # Enqueue failure does not fail the submission creation
+
         return Response(
             {
                 'message': (
