@@ -274,3 +274,4 @@ class DockerSandbox:
                 time_taken=elapsed,
                 error_message=f"Sandbox error: {str(exc)}"
             )
+

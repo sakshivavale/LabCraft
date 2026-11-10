@@ -89,3 +89,4 @@ def compare_outputs(actual_output: str, expected_output: str) -> tuple[bool, str
         diff_text += "\n... (remaining diff truncated)"
 
     return False, diff_text
+
