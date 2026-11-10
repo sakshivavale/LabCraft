@@ -1,0 +1,35 @@
+# ============================================================
+# LabCraft – Python / Django Dependencies
+# ============================================================
+
+# --- Core Framework ---
+Django>=4.2,<5.0
+
+# --- REST API ---
+djangorestframework>=3.14
+
+# --- Authentication (JWT) ---
+djangorestframework-simplejwt>=5.3
+
+# --- CORS (allow React frontend) ---
+django-cors-headers>=4.3
+
+# --- Database (PostgreSQL) ---
+psycopg2-binary>=2.9
+
+# --- Environment Variables ---
+python-dotenv>=1.0
+
+# --- Image & File Handling ---
+Pillow>=10.0
+
+# --- Development Utilities ---
+django-extensions>=3.2
+
+# --- Testing ---
+pytest>=7.4
+pytest-django>=4.7
+
+# --- Code Execution (to be expanded in feature/automated-grading-engine) ---
+# docker>=6.0
+
