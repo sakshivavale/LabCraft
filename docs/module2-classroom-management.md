@@ -1040,3 +1040,4 @@ The PR should be reviewed and tested before merging into `develop`. Leave it ope
 ---
 
 *Document created as part of LabCraft Module 2 — November 2026*
+
