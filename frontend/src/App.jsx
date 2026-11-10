@@ -9,16 +9,35 @@ import CodeEditorPage from './pages/CodeEditorPage';
 import SubmissionHistoryPage from './pages/SubmissionHistoryPage';
 import SubmissionDetailPage from './pages/SubmissionDetailPage';
 import TeacherSubmissionsPage from './pages/TeacherSubmissionsPage';
+import StudentDashboardPage from './pages/StudentDashboardPage';
+import TeacherDashboardPage from './pages/TeacherDashboardPage';
+import { getUser } from './utils/auth';
+
+function RootRedirect() {
+  const user = getUser();
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+  return user.role === 'teacher' ? (
+    <Navigate to="/teacher/dashboard" replace />
+  ) : (
+    <Navigate to="/dashboard" replace />
+  );
+}
 
 function App() {
   return (
     // Routes is the container; only the first matching Route is rendered
     <Routes>
-      {/* Root path — redirect immediately to /login so there is no blank page */}
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      {/* Root path — dynamically redirect to role-specific dashboard or login */}
+      <Route path="/" element={<RootRedirect />} />
 
       {/* Authentication page — accessible before the user logs in */}
       <Route path="/login" element={<LoginPage />} />
+
+      {/* Analytics Dashboards (Module 6) */}
+      <Route path="/dashboard" element={<StudentDashboardPage />} />
+      <Route path="/teacher/dashboard" element={<TeacherDashboardPage />} />
 
       {/* Student: open the Monaco code editor for a specific assignment */}
       <Route path="/assignments/:assignmentId/submit" element={<CodeEditorPage />} />
