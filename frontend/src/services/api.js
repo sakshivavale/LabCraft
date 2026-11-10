@@ -113,6 +113,40 @@ export const getTeacherStudentSubmissions = (assignmentId, studentId) =>
 export const getAssignment = (assignmentId) =>
   api.get(`/api/assignments/${assignmentId}/student/`);
 
+// ---------------------------------------------------------------------------
+// Analytics API helpers (Module 6)
+// ---------------------------------------------------------------------------
+
+/**
+ * Student fetches personal performance analytics across all enrolled classrooms.
+ * GET /api/analytics/student/dashboard/
+ */
+export const getStudentDashboard = () =>
+  api.get('/api/analytics/student/dashboard/');
+
+/**
+ * Teacher fetches aggregated analytics across all classrooms they instruct.
+ * GET /api/analytics/teacher/dashboard/
+ */
+export const getTeacherDashboard = () =>
+  api.get('/api/analytics/teacher/dashboard/');
+
+/**
+ * Teacher fetches classroom-level performance, assignment stats, and student leaderboard.
+ * GET /api/analytics/classroom/<id>/
+ * @param {number|string} classroomId
+ */
+export const getClassroomAnalytics = (classroomId) =>
+  api.get(`/api/analytics/classroom/${classroomId}/`);
+
+/**
+ * Teacher fetches assignment-level performance, score buckets, and student gradebook.
+ * GET /api/analytics/assignment/<id>/
+ * @param {number|string} assignmentId
+ */
+export const getAssignmentAnalytics = (assignmentId) =>
+  api.get(`/api/analytics/assignment/${assignmentId}/`);
+
 /**
  * User login helper.
  * POST /api/auth/login/

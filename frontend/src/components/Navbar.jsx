@@ -13,12 +13,30 @@ import { getUser, logout } from '../utils/auth';
 
 function Navbar() {
   const user = getUser();
+  const dashboardPath = user?.role === 'teacher' ? '/teacher/dashboard' : '/dashboard';
 
   return (
     <header className="navbar">
-      <Link to="/" className="navbar-brand">
-        ⚡ LabCraft
-      </Link>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+        <Link to={user ? dashboardPath : '/login'} className="navbar-brand">
+          ⚡ LabCraft
+        </Link>
+        {user && (
+          <nav style={{ display: 'flex', gap: '12px' }}>
+            <Link
+              to={dashboardPath}
+              className="btn btn-secondary"
+              style={{
+                padding: '6px 12px',
+                fontSize: '13px',
+                textDecoration: 'none',
+              }}
+            >
+              📊 {user.role === 'teacher' ? 'Instructor Dashboard' : 'My Dashboard'}
+            </Link>
+          </nav>
+        )}
+      </div>
 
       <div className="navbar-actions">
         {user ? (

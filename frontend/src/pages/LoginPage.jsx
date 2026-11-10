@@ -61,11 +61,11 @@ function LoginPage() {
 
       // Redirect depending on user role
       if (user.role === 'teacher') {
-        // Teachers see classroom/assignment submissions
-        navigate('/teacher/assignments/1/submissions');
+        // Teachers land on the instructor multi-classroom dashboard
+        navigate('/teacher/dashboard');
       } else {
-        // Students go to code editor for their assignment
-        navigate('/assignments/1/submit');
+        // Students land on their performance & assignment progress dashboard
+        navigate('/dashboard');
       }
     } catch (err) {
       // Extract custom error message from DRF backend if available
